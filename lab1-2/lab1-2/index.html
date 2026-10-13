@@ -19,13 +19,14 @@
              container: 'map',
              style: 'mapbox://styles/mapbox/standard',
              projection: 'globe', //Display the map as a globe since satellite-v9 defaults to Mercator
-             center: [-122.3081, 47.6553], // Defaults to show UW's Red Square and Quad
+             center: [-122.3860, 47.6685], // Defaults to show Ballard
              zoom:15 // Zooms in to show individual buildings at UW
           });
 mymap.on('style.load', () => {
     mymap.setConfigProperty('basemap', 'lightPreset', 'dusk'); // Turns the map to night mode
     mymap.setConfigProperty('basemap', 'showPointOfInterestLabels', false); // Removes labels on places of interest
-    
+    mymap.setConfigProperty('basemap', 'showPointOfTransitLabels', false); // Removes transit lines, makes it clearer to see just the basemap
+    mymap.setConfigProperty('basemap', 'font', 'Barlow'); // Changes fonts of labels to Barlow, a more visually appealing font
 });        
 mymap.addControl(new mapboxgl.FullscreenControl()); // Adds the ability to go fullscreen
 mymap.addControl(new mapboxgl.NavigationControl()); // Adds the ability to zoom and revert to North
