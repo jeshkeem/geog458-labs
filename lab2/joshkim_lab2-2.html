@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Megacities and the Long Tail of World Cities</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+
+        /* Map title */
+        #title {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #fff;
+            padding: 10px 15px;
+            border-radius: 3px;
+        }
+        #title h1 { margin: 0; font-size: 18px; }
+        #title p { margin: 4px 0 0; font-size: 12px; }
+
+        /* Layout of the legend panel. */
+        #legend {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 130px;
+            background: #fff;
+            margin-right: 20px;
+            margin-bottom: 40px;
+            padding: 10px 20px 10px 10px;
+            border-radius: 3px;
+            text-align: center;
+        }
+
+        /* Each row for a population class. */
+        .break {
+            position: relative;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* The circular symbol. */
+        .dot {
+            display: inline-block;
+            margin-top: 5px;
+            border-radius: 50%;
+            opacity: 0.7;
+        }
+
+        /* Label next to the symbol. */
+        .dot-label {
+            position: absolute;
+            top: 0;
+            right: 0;
+            font-style: italic;
+        }
+
+        /* Link color within the legend. */
+        #legend a {
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <div id="title">
+        <h1>MegaCities of the World</h1>
+    </div>
+
+    <div id="legend"></div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiamVzaGtlZW0iLCJhIjoiY211enUxN3RrMHRkdjJ3cTFxNzNlaHBweiJ9.imBE5_VPAYulBsUqLem0Xw';
+
+        /* ------------------------------------------------------------------
+           DATA NOTES (inspected in world-cities.geojson)
+           - 19,321 Point features, all with a numeric 'population' value
+           - City name field:   accentcity
+           - Population field:  population (range 15,001 to 31,480,498)
+           - The data is extremely right-skewed: the median is about 36,000
+             but Tokyo is about 31.5 million. A simple linear scale would make
+             nearly every city invisible, so size and color are designed
+             around that.
+           ------------------------------------------------------------------ */
+
+        /* BASEMAP: dark-v11. Bright symbols stand out on a dark background,
+           which keeps 19,000 overlapping points readable. */
+        const mymap = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/dark-v11',
+            projection: 'globe',
+            center: [20, 25],
+            zoom: 1.6
+        });
+
+        mymap.addControl(new mapboxgl.FullscreenControl());
+        mymap.addControl(new mapboxgl.NavigationControl());
+
+        mymap.on('style.load', () => {
+            mymap.setFog({});
+        });
+
+        mymap.on('load', () => {
+            mymap.addSource('population', {
+                type: 'geojson',
+                data: 'data/world-cities.geojson'
+            });
+
+                /* For scale, circle area is proportional to population.
+                Circle area = pi * r^2, so for the area to be proportional to
+                population the radius must scale with the root of
+                population, or in my map, radius = sqrt(population) / 190.
+                Tokyo (31.5M) gets a radius of about 29 px and a 1M city about 5 px.
+                'max' sets a 1 px minimum so you can still see even the smallest villages/towns
+
+                6 classes/groups are used using manual breaks.
+                The map displays megacities and its comparison to other smaller cities,
+                so the breaks align with more common urban-size groups.
+                   under 100k   darker blue
+                   100k - 500k  teal
+                   500k - 1M    yellow
+                   1M - 5M      orange
+                   5M - 10M     red-orange
+                   >10M         hot pink
+                Megacities (>10M) are noted in a hot pink with colors descending into orange, 
+                yellows, and blues with decreasing population.
+                Muted cool colors were used for smaller towns and bright warm colors for
+                larger ones since these draw the eye more and pop out to a viewer more.  */
+                
+            mymap.addLayer({
+                id: 'population-layer',
+                type: 'circle',
+                source: 'population',
+                paint: {
+                    'circle-radius': [
+                        'max', 1,
+                        ['/', ['sqrt', ['to-number', ['get', 'population'], 0]], 190]
+                    ],
+                    'circle-color': [
+                        'step', ['to-number', ['get', 'population'], 0],
+                        '#5b7aa6',
+                        100000, '#2ec4b6',
+                        500000, '#ffd23f',
+                        1000000, '#ff9f1c',
+                        5000000, '#f2542d',
+                        10000000, '#ff2e93'
+                    ],
+                    'circle-opacity': 0.7,
+                    'circle-stroke-width': 0.5,
+                    'circle-stroke-color': 'white'
+                }
+            });
+
+            // Click a city to view its name and population.
+            mymap.on('click', 'population-layer', (event) => {
+                const feature = event.features[0];
+                const coordinates = feature.geometry.coordinates.slice(0, 2);
+
+                new mapboxgl.Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(
+                        `<strong>${feature.properties.accentcity}</strong><br>` +
+                        `Population: ${feature.properties.population}`
+                    )
+                    .addTo(mymap);
+            });
+        });
+
+        // Anchor the legend to the HTML element with id="legend".
+        // The colors match the 'step'/manual break color groups written above. Every radius is
+        // sqrt(sample population) / 190 and use a typical city from that class
+        // (20M, 7.5M, 2.5M, 750k, 250k, 40k). Diameter = 2 x radius.
+        const legend = document.getElementById('legend');
+        const grades = ['10M +', '5M – 10M', '1M – 5M', '500k – 1M', '100k – 500k', 'under 100k'];
+        const radii = [23.5, 14.4, 8.3, 4.6, 2.6, 1.1];
+        const colors = ['#ff2e93', '#f2542d', '#ff9f1c', '#ffd23f', '#2ec4b6', '#5b7aa6'];
+        const labels = ['<strong>City population</strong>'];
+
+        for (let i = 0; i < grades.length; i++) {
+            const value = grades[i];
+            const diameter = 2 * radii[i];
+
+            labels.push(
+                '<p class="break"><i class="dot" style="background:' + colors[i] +
+                '; width:' + diameter + 'px; height:' + diameter +
+                'px;"></i> <span class="dot-label" style="top:' +
+                diameter / 2 + 'px;">' + value + '</span></p>'
+            );
+        }
+
+        const source =
+            '<p style="text-align:right; font-size:10pt;">Source: ' +
+            '<a href="https://www.naturalearthdata.com/downloads/10m-cultural-vectors/10m-populated-places/">Natural Earth</a></p>';
+
+        legend.innerHTML = labels.join('') + source;
+    </script>
+</body>
+</html>

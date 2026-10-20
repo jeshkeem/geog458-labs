@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='utf-8' />
+    <title>my First Map</title>
+    <meta name='viewport' content='width=device-width, initial-scale=1' />
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%;}
+        #marker {
+        background-image: url('https://docs.mapbox.com/mapbox-gl-js/assets/washington-monument.jpg');
+        background-size: cover;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        cursor: pointer;
+        }
+        .mapboxgl-popup {
+            max-width: 200px;}
+   </style>
+</head>
+<body>
+   <div id='map'></div>
+   <script>
+      mapboxgl.accessToken = 'pk.eyJ1IjoiamVzaGtlZW0iLCJhIjoiY211enUxN3RrMHRkdjJ3cTFxNzNlaHBweiJ9.imBE5_VPAYulBsUqLem0Xw';
+      const mymap = new mapboxgl.Map({ // Initialize the Mapbox instance and render the map inside the '#map' element.
+             container: 'map',
+             style: 'mapbox://styles/mapbox/standard',
+             projection: 'globe', //Display the map as a globe since satellite-v9 defaults to Mercator
+             center: [-122.3035, 47.6553], // Defaults to show uw
+             zoom: 2 // Zooms in to show individual buildings at UW
+          });     
+
+        //....code to add a map object.......
+        // create DOM element for the marker
+        const el = document.createElement('div');
+            el.id = 'marker';
+       
+        const marker1 =  new mapboxgl.Marker(el)
+                                    .setLngLat([-122.3035, 47.6553])
+                                    .setPopup(new mapboxgl.Popup().setText("hi"))
+                                    .addTo(mymap);
+
+         mymap.on('style.load', () => {
+        mymap.setFog({}); // Set the default atmosphere style
+         });
+       
+        mymap.on('load', () => {
+        mymap.addSource('earthquakes', {
+            type: 'geojson',
+            // Use a URL for the value for the `data` property.
+            data: 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson'
+        });
+        mymap.addLayer({
+            'id': 'earthquakes-layer',
+           'type': 'circle',
+            'source': 'earthquakes',
+            'paint': {
+                'circle-radius': 4,
+                'circle-stroke-width': 2,
+                'circle-color': 'red',
+                'circle-stroke-color': 'white'
+                     }
+                    });
+        });
+
+mymap.addControl(new mapboxgl.FullscreenControl()); // Adds the ability to go fullscreen
+mymap.addControl(new mapboxgl.NavigationControl()); // Adds the ability to zoom and revert to North
+</script>
+</body>
+</html>
